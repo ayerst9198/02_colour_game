@@ -1,89 +1,98 @@
-from tkinter import *
-from tkinter import PhotoImage
-from tkinter import messagebox
+import pygame
 
+# Initialize Pygame
+pygame.init()
 
-class Colour:
+# Set up the game window
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
+window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+pygame.display.set_caption("2D Platformer")
 
-    def __init__(self):
-        # common format for all buttons
-        # Arial size 14 bold, with white text
-        button_font = ("Arial", "12", "bold")
-        button_fg = "#FFFFFF"
+# Set up the game clock
+clock = pygame.time.Clock()
 
-        # Set up GUI Frame
-        self.col_frame = Frame(padx=10, pady=10)
-        self.col_frame.grid()
+# Set up the player
+player_rect = pygame.Rect(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2, 50, 50)
+player_color = pygame.Color('red')
+player_speed = 5
+player_jump = False
+player_y_momentum = 0
+player_coyote_time = 10
 
-        self.col_heading = Label(self.col_frame,
-                                 text="Colour Quest",
-                                 font=("Arial", "16", "bold",)
-                                 )
-        self.col_heading.grid(row=0)
+# Set up the platforms
+platform_rects = [
+    pygame.Rect(200, 400, 400, 50),
+    pygame.Rect(0, 550, WINDOW_WIDTH, 50),
+]
+platform_color = pygame.Color('white')
 
-        instructions = "In each round you will be given six different colours to choose from. Pick a colour " \
-                       "and see if you can beat the computer's score!" \
-                       "\n" \
-                       "\n" \
-                       "To begin, choose how many rounds you'd like to play..."
+# Set up the gravity
+gravity = 0.3
+max_fall_speed = 10
+gravity_switch = False
 
-        self.col_instructions = Label(self.col_frame,
-                                      text=instructions,
-                                      wrap=400, width=60,
-                                      justify="left")
-        self.col_instructions.grid(row=1)
+# Game loop
+running = True
+while running:
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE and (not player_jump or player_coyote_time > 0):
+                player_jump = True
+                player_y_momentum = -12
+                player_coyote_time = 0
 
-        self.col_error = Label(self.col_frame, text="",
-                               fg="#9C0000")
-        self.col_error.grid(row=3)
+    # Handle player movement
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_a] and player_rect.left > 0:
+        player_rect.x -= player_speed
+    elif keys[pygame.K_d] and player_rect.right < WINDOW_WIDTH:
+        player_rect.x += player_speed
 
-        # Conversion, help and history / export buttons
-        self.button_frame = Frame(self.col_frame)
-        self.button_frame.grid(row=4)
+    # Handle player jumping
+    if player_jump:
+        player_y_momentum += gravity
+        player_rect.y += player_y_momentum
+        if player_y_momentum >= max_fall_speed:
+            player_jump = False
+            player_y_momentum = max_fall_speed
+    elif player_coyote_time < 10:
+        player_coyote_time += 1
 
-        self.three_rounds_button = Button(self.button_frame,
-                                          text="3 Rounds",
-                                          bg="#CC0000",
-                                          fg=button_fg,
-                                          font=button_font, width=12)
-        self.three_rounds_button.grid(row=0, column=0, padx=5, pady=5)
+    # Handle gravity
+    if not player_jump:
+        if gravity_switch:
+            player_rect.y -= 5
+        else:
+            player_rect.y += 5
+    for platform_rect in platform_rects:
+        if player_rect.colliderect(platform_rect):
+            if player_jump and player_y_momentum < 0:
+                player_rect.top = platform_rect.bottom
+                player_y_momentum = 0
+                player_coyote_time = 0
+            elif not player_jump and player_rect.bottom == platform_rect.top:
+                gravity_switch = True
+                player_rect.bottom = platform_rect.top
+            else:
+                if player_rect.bottom > platform_rect.top:
+                    player_rect.bottom = platform_rect.top
+                    player_y_momentum = 0
+        else:
+            gravity_switch = False
 
-        self.five_rounds_button = Button(self.button_frame,
-                                         text="5 Rounds",
-                                         bg="green",
-                                         fg=button_fg,
-                                         font=button_font, width=12,
-                                         command=self.activate_trap_card)
-        self.five_rounds_button.grid(row=0, column=1, padx=5, pady=5)
+    # Draw the game
+    window.fill((0, 0, 0))
+    pygame.draw.rect(window, player_color, player_rect)
+    for platform_rect in platform_rects:
+        pygame.draw.rect(window, platform_color, platform_rect)
+    pygame.display.flip()
 
-        self.ten_rounds_button = Button(self.button_frame,
-                                        text="10 Rounds",
-                                        bg="dark blue",
-                                        fg=button_fg,
-                                        font=button_font, width=12)
-        self.ten_rounds_button.grid(row=0, column=2, padx=5, pady=5)
+    # Wait for next frame
+    clock.tick(60)
 
-    def activate_trap_card(self):
-        trap_window = Toplevel()
-        trap_window.attributes('-fullscreen', True)
-        trap_label = Label(trap_window, text="You fool! You have activated my trap card!",
-                           wraplength=600,
-                           font=("Arial", "50", "bold"))
-        trap_label.pack()
-
-        # load the GIF and display it in a Label
-        trap_gif = PhotoImage(file="C:/users/ayerst9198/OneDrive - Massey High School/2023/yugioh-anime.gif")
-        trap_gif_label = Label(trap_window, image=trap_gif)
-        trap_gif_label.pack()
-        # start the animation
-        trap_gif_label.image = trap_gif  # prevent image from being garbage-collected
-        trap_gif_label.after(1, lambda: trap_gif_label.config(image=trap_gif))
-
-
-# main routine
-if __name__ == "__main__":
-    root = Tk()
-    antigravity = 1
-    root.title("Temperature Converter")
-    Colour()
-    root.mainloop()
+# Clean up
+pygame.quit()
